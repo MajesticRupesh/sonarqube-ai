@@ -51,7 +51,10 @@ export async function fixBugs(context: vscode.ExtensionContext) {
     'fixBugs',
     'Fix Bugs',
     vscode.ViewColumn.One,
-    { enableScripts: true }
+    { 
+      enableScripts: true,
+      retainContextWhenHidden: true
+    }
   );
 
   panel.webview.html = getWebviewContent(data.issues, workspaceFolder);

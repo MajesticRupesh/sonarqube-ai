@@ -12,7 +12,8 @@ export async function getIssues(context: vscode.ExtensionContext) {
     'SonarQube Configuration',
     vscode.ViewColumn.One,
     {
-      enableScripts: true
+      enableScripts: true,
+      retainContextWhenHidden: true
     }
   );
 
