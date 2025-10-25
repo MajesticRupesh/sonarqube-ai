@@ -1,10 +1,26 @@
 import * as vscode from 'vscode';
 import * as fs from 'fs';
 import * as path from 'path';
-import { exec } from 'child_process';
-import { promisify } from 'util';
 
-const execAsync = promisify(exec);
+const terminals = new Map<string, vscode.Terminal>();
+
+function getOrCreateTerminal(name: string): vscode.Terminal {
+  let terminal = terminals.get(name);
+  if (terminal && terminal.exitStatus === undefined) {
+    return terminal;
+  }
+  
+  terminal = vscode.window.createTerminal({ name });
+  terminals.set(name, terminal);
+  
+  vscode.window.onDidCloseTerminal((closedTerminal) => {
+    if (closedTerminal === terminal) {
+      terminals.delete(name);
+    }
+  });
+  
+  return terminal;
+}
 
 export async function getIssues(context: vscode.ExtensionContext) {
   const panel = vscode.window.createWebviewPanel(
@@ -24,29 +40,30 @@ export async function getIssues(context: vscode.ExtensionContext) {
       if (message.command === 'submit') {
         const { token, url } = message;
         
-        try {
-          const curlCommand = `curl -u "${token}:" "${url}"`;
-          const { stdout } = await execAsync(curlCommand);
-          
-          const workspaceFolder = vscode.workspace.workspaceFolders?.[0].uri.fsPath;
-          if (!workspaceFolder) {
-            vscode.window.showErrorMessage('No workspace folder open');
-            return;
-          }
-          
-          const tempDir = path.join(workspaceFolder, 'sonarai-temp');
-          if (!fs.existsSync(tempDir)) {
-            fs.mkdirSync(tempDir, { recursive: true });
-          }
-          
-          const filePath = path.join(tempDir, 'sonar-issues.json');
-          fs.writeFileSync(filePath, stdout);
-          
-          vscode.window.showInformationMessage(`Data saved to: ${filePath}`);
-          panel.dispose();
-        } catch (error: any) {
-          vscode.window.showErrorMessage(`Error: ${error.message}`);
+        const workspaceFolder = vscode.workspace.workspaceFolders?.[0].uri.fsPath;
+        if (!workspaceFolder) {
+          vscode.window.showErrorMessage('No workspace folder open');
+          return;
         }
+        
+        const tempDir = path.join(workspaceFolder, 'sonarai-temp');
+        if (!fs.existsSync(tempDir)) {
+          fs.mkdirSync(tempDir, { recursive: true });
+        }
+        
+        const filePath = path.join(tempDir, 'sonar-issues.json');
+        
+        // Run curl command in a separate terminal
+        const terminal = getOrCreateTerminal('SonarQube API');
+        terminal.show(true);
+        
+        const escapedToken = token.replace(/"/g, '\\"');
+        const escapedUrl = url.replace(/"/g, '\\"');
+        
+        terminal.sendText(`curl -u "${escapedToken}:" "${escapedUrl}" > "${filePath}"`);
+        
+        vscode.window.showInformationMessage(`Fetching SonarQube issues... Check the terminal for progress. Data will be saved to: ${filePath}`);
+        panel.dispose();
       }
     },
     undefined,
