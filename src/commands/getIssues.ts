@@ -23,6 +23,23 @@ function getOrCreateTerminal(name: string): vscode.Terminal {
 }
 
 export async function getIssues(context: vscode.ExtensionContext) {
+  const workspaceFolder = vscode.workspace.workspaceFolders?.[0].uri.fsPath;
+  if (!workspaceFolder) {
+    vscode.window.showErrorMessage('No workspace folder open');
+    return;
+  }
+
+  // Load existing config
+  const configPath = path.join(workspaceFolder, '.vscode/sonar-ai', 'config.json');
+  let existingConfig = null;
+  try {
+    if (fs.existsSync(configPath)) {
+      existingConfig = JSON.parse(fs.readFileSync(configPath, 'utf8'));
+    }
+  } catch (error) {
+    // Ignore config loading errors
+  }
+
   const panel = vscode.window.createWebviewPanel(
     'sonarqubeConfig',
     'SonarQube Configuration',
@@ -33,36 +50,28 @@ export async function getIssues(context: vscode.ExtensionContext) {
     }
   );
 
-  panel.webview.html = getWebviewContent();
+  panel.webview.html = getWebviewContent(existingConfig);
 
   panel.webview.onDidReceiveMessage(
     async message => {
       if (message.command === 'submit') {
         const { token, url } = message;
         
-        const workspaceFolder = vscode.workspace.workspaceFolders?.[0].uri.fsPath;
-        if (!workspaceFolder) {
-          vscode.window.showErrorMessage('No workspace folder open');
-          return;
+        // Save config and run curl
+        const configDir = path.join(workspaceFolder, '.vscode/sonar-ai');
+        if (!fs.existsSync(configDir)) {
+          fs.mkdirSync(configDir, { recursive: true });
         }
         
-        const tempDir = path.join(workspaceFolder, '.vscode/sonar-ai');
-        if (!fs.existsSync(tempDir)) {
-          fs.mkdirSync(tempDir, { recursive: true });
-        }
+        fs.writeFileSync(configPath, JSON.stringify({ token, url }, null, 2));
         
-        const filePath = path.join(tempDir, 'sonar-issues.json');
-        
-        // Run curl command in a separate terminal
+        const filePath = path.join(configDir, 'sonar-issues.json');
         const terminal = getOrCreateTerminal('SonarQube API');
         terminal.show(true);
         
-        const escapedToken = token.replace(/"/g, '\\"');
-        const escapedUrl = url.replace(/"/g, '\\"');
+        terminal.sendText(`curl -u "${token.replace(/"/g, '\\"')}:" "${url.replace(/"/g, '\\"')}" > "${filePath}"`);
         
-        terminal.sendText(`curl -u "${escapedToken}:" "${escapedUrl}" > "${filePath}"`);
-        
-        vscode.window.showInformationMessage(`Fetching SonarQube issues... Check the terminal for progress. Data will be saved to: ${filePath}`);
+        vscode.window.showInformationMessage(`Configuration saved and fetching SonarQube issues... Check the terminal for progress.`);
       }
     },
     undefined,
@@ -70,7 +79,10 @@ export async function getIssues(context: vscode.ExtensionContext) {
   );
 }
 
-function getWebviewContent() {
+function getWebviewContent(existingConfig: any) {
+    const tokenValue = existingConfig?.token || '';
+    const urlValue = existingConfig?.url || '';
+    
     return `<!DOCTYPE html>
 <html lang="en">
 <head>
@@ -109,18 +121,26 @@ function getWebviewContent() {
         button:hover {
             background: var(--vscode-button-hoverBackground);
         }
+        .status {
+            margin-top: 10px;
+            padding: 8px;
+            background: var(--vscode-textBlockQuote-background);
+            border-left: 3px solid var(--vscode-textBlockQuote-border);
+            font-size: 0.9em;
+        }
     </style>
 </head>
 <body>
     <h2>SonarQube Configuration</h2>
+    ${existingConfig ? '<div class="status">✓ Configuration loaded from previous session</div>' : ''}
     <form id="configForm">
         <div class="form-group">
             <label for="token">Token:</label>
-            <input type="text" id="token" required>
+            <input type="text" id="token" value="${tokenValue}" required>
         </div>
         <div class="form-group">
             <label for="url">URL:</label>
-            <input type="text" id="url" placeholder="https://sonarqube.your-company.com" required>
+            <input type="text" id="url" value="${urlValue}" placeholder="https://sonarqube.your-company.com" required>
         </div>
         <button type="submit">Submit</button>
     </form>
