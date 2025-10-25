@@ -34,7 +34,7 @@ async function runCursorAgent(dir: string, prompt: string, file: string): Promis
     .replace(/\$/g, '\\$')
     .replace(/`/g, '\\`');
   
-  terminal.sendText(`cursor-agent -p "${escapedPrompt}" "${file}" --output-format json > sonarai-temp/ai-response.json`);
+  terminal.sendText(`cursor-agent -p "${escapedPrompt}" "${file}" --output-format json > .vscode/sonar-ai/ai-response.json`);
 }
 
 export async function fixBugs(context: vscode.ExtensionContext) {
@@ -44,7 +44,7 @@ export async function fixBugs(context: vscode.ExtensionContext) {
     return;
   }
 
-  const filePath = path.join(workspaceFolder, 'sonarai-temp', 'sonar-issues.json');
+  const filePath = path.join(workspaceFolder, '.vscode/sonar-ai', 'sonar-issues.json');
   const data = JSON.parse(fs.readFileSync(filePath, 'utf8'));
   
   const panel = vscode.window.createWebviewPanel(

@@ -46,7 +46,7 @@ export async function getIssues(context: vscode.ExtensionContext) {
           return;
         }
         
-        const tempDir = path.join(workspaceFolder, 'sonarai-temp');
+        const tempDir = path.join(workspaceFolder, '.vscode/sonar-ai');
         if (!fs.existsSync(tempDir)) {
           fs.mkdirSync(tempDir, { recursive: true });
         }
@@ -63,7 +63,6 @@ export async function getIssues(context: vscode.ExtensionContext) {
         terminal.sendText(`curl -u "${escapedToken}:" "${escapedUrl}" > "${filePath}"`);
         
         vscode.window.showInformationMessage(`Fetching SonarQube issues... Check the terminal for progress. Data will be saved to: ${filePath}`);
-        panel.dispose();
       }
     },
     undefined,
