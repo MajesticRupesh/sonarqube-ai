@@ -56,66 +56,92 @@
       // Set workspace folder
       document.getElementById('dir').value = workspaceFolder;
       
-      // Generate unique values
-      const types = [...new Set(issues.map(i => i.type))];
-      const severities = [...new Set(issues.map(i => i.severity))];
-      const rules = [...new Set(issues.map(i => i.rule))];
-      const directories = [...new Set(issues.map(i => i.component.split(':')[1].split('/').slice(0, -1).join('/')))];
-      const files = [...new Set(issues.map(i => i.component))];
-      
-      // Populate filters
-      populateFilters('typeFilters', types);
-      populateFilters('severityFilters', severities);
-      populateFilters('ruleFilters', rules);
-      populateFilters('directoryFilters', directories);
-      populateFilters('fileFilters', files);
-      
       // Initial filter
       filter();
     }
     
     function populateFilters(containerId, values) {
       const container = document.getElementById(containerId);
-      container.innerHTML = values.map(value => 
-        `<div class="checkbox"><input type="checkbox" value="${value}" onchange="filter()"> ${value}</div>`
-      ).join('');
+      const checkedValues = Array.from(document.querySelectorAll(`#${containerId} input[type="checkbox"]:checked`)).map(cb => cb.value);
+
+      // Sort values by count (descending)
+      const sortedValues = [...values].sort((a, b) => {
+        const countA = getCountForValue(containerId, a);
+        const countB = getCountForValue(containerId, b);
+        return countB - countA; // highest count first
+      });
+
+      container.innerHTML = sortedValues.map(value => {
+        const count = getCountForValue(containerId, value);
+        const checked = checkedValues.includes(value) ? 'checked' : '';
+        return count > 0
+          ? `<div class="checkbox">
+              <input type="checkbox" value="${value}" onchange="filter()" ${checked}> 
+              ${value} (${count})
+            </div>`
+          : '';
+
+      }).join('');
+    }
+    
+    const filterMappings = {
+      'typeFilters': i => i.type,
+      'severityFilters': i => i.severity,
+      'ruleFilters': i => i.rule,
+      'directoryFilters': i => i.component.split(':')[1].split('/').slice(0, -1).join('/'),
+      'fileFilters': i => i.component
+    };
+    
+    function getCountForValue(containerId, value) {
+      const filteredIssues = getFilteredIssuesExcluding(containerId);
+      return filteredIssues.filter(i => filterMappings[containerId](i) === value).length;
+    }
+    
+    function getCheckedValues(containerId) {
+      return Array.from(document.querySelectorAll(`#${containerId} input[type="checkbox"]:checked`)).map(cb => cb.value);
+    }
+    
+    function getFilteredIssuesExcluding(excludeContainerId) {
+      const filters = {
+        'typeFilters': excludeContainerId !== 'typeFilters' ? getCheckedValues('typeFilters') : [],
+        'severityFilters': excludeContainerId !== 'severityFilters' ? getCheckedValues('severityFilters') : [],
+        'ruleFilters': excludeContainerId !== 'ruleFilters' ? getCheckedValues('ruleFilters') : [],
+        'directoryFilters': excludeContainerId !== 'directoryFilters' ? getCheckedValues('directoryFilters') : [],
+        'fileFilters': excludeContainerId !== 'fileFilters' ? getCheckedValues('fileFilters') : []
+      };
+      
+      return issues.filter(issue => {
+        if (filters.typeFilters.length > 0 && !filters.typeFilters.includes(issue.type)) return false;
+        if (filters.severityFilters.length > 0 && !filters.severityFilters.includes(issue.severity)) return false;
+        if (filters.ruleFilters.length > 0 && !filters.ruleFilters.includes(issue.rule)) return false;
+        if (filters.directoryFilters.length > 0 && !filters.directoryFilters.some(dir => issue.component.includes(dir))) return false;
+        if (filters.fileFilters.length > 0 && !filters.fileFilters.includes(issue.component)) return false;
+        return true;
+      });
     }
     
     function filter() {
-      const checkedTypes = Array.from(document.querySelectorAll('#typeFilters input[type="checkbox"]:checked')).map(cb => cb.value);
-      const checkedSeverities = Array.from(document.querySelectorAll('#severityFilters input[type="checkbox"]:checked')).map(cb => cb.value);
-      const checkedRules = Array.from(document.querySelectorAll('#ruleFilters input[type="checkbox"]:checked')).map(cb => cb.value);
-      const checkedDirs = Array.from(document.querySelectorAll('#directoryFilters input[type="checkbox"]:checked')).map(cb => cb.value);
-      const checkedFiles = Array.from(document.querySelectorAll('#fileFilters input[type="checkbox"]:checked')).map(cb => cb.value);
+      // Initialize filters if not already done
+      if (document.getElementById('typeFilters').children.length === 0) {
+        updateAllFilterCounts();
+      }
       
-      filteredIssues = issues.filter(issue => {
-        if (checkedTypes.length > 0 && !checkedTypes.includes(issue.type)) return false;
-        if (checkedSeverities.length > 0 && !checkedSeverities.includes(issue.severity)) return false;
-        if (checkedRules.length > 0 && !checkedRules.includes(issue.rule)) return false;
-        if (checkedDirs.length > 0 && !checkedDirs.some(dir => issue.component.includes(dir))) return false;
-        if (checkedFiles.length > 0 && !checkedFiles.includes(issue.component)) return false;
-        return true;
-      });
+      filteredIssues = getFilteredIssuesExcluding('');
+      updateAllFilterCounts();
       
-      let text = '';
+      const groupedByFile = filteredIssues.reduce((acc, issue) => {
+        if (!acc[issue.component]) acc[issue.component] = [];
+        acc[issue.component].push(issue);
+        return acc;
+      }, {});
       
-      const groupedByFile = {};
-      filteredIssues.forEach(issue => {
-        if (!groupedByFile[issue.component]) groupedByFile[issue.component] = [];
-        groupedByFile[issue.component].push(issue);
-      });
-      
-      Object.keys(groupedByFile).forEach(file => {
-        text += 'File: ' + file + ' (' + groupedByFile[file].length + ' issues)\n';
-        groupedByFile[file].forEach((issue, idx) => {
-          text += '  Issue ' + (idx + 1) + ':\n';
-          text += '  Message: ' + issue.message + '\n';
-          text += '  Severity: ' + issue.severity + '\n';
-          if (issue.line) text += '  Line: ' + issue.line + '\n';
-          text += '  Rule: ' + issue.rule + '\n\n';
-        });
-      });
-      text += 'Fix these SAST issues';
+      const text = Object.entries(groupedByFile).map(([file, fileIssues]) => {
+        const fileText = `File: ${file} (${fileIssues.length} issues)\n`;
+        const issuesText = fileIssues.map((issue, idx) => 
+          `  Issue ${idx + 1}:\n  Message: ${issue.message}\n  Severity: ${issue.severity}\n${issue.line ? `  Line: ${issue.line}\n` : ''}  Rule: ${issue.rule}\n\n`
+        ).join('');
+        return fileText + issuesText;
+      }).join('') + 'Fix these SAST issues';
       
       document.getElementById('prompt').value = text;
       document.getElementById('btn').disabled = filteredIssues.length === 0;
@@ -124,6 +150,20 @@
       if (filteredIssues.length > 0) {
         currentFile = filteredIssues[0].component;
       }
+    }
+    
+    function updateAllFilterCounts() {
+      const filterConfigs = {
+        'typeFilters': issues.map(i => i.type),
+        'severityFilters': issues.map(i => i.severity),
+        'ruleFilters': issues.map(i => i.rule),
+        'directoryFilters': issues.map(i => i.component.split(':')[1].split('/').slice(0, -1).join('/')),
+        'fileFilters': issues.map(i => i.component)
+      };
+      
+      Object.entries(filterConfigs).forEach(([containerId, values]) => {
+        populateFilters(containerId, [...new Set(values)]);
+      });
     }
     
     function fix() {
