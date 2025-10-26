@@ -68,13 +68,15 @@
       const sortedValues = [...values].sort((a, b) => {
         const countA = getCountForValue(containerId, a);
         const countB = getCountForValue(containerId, b);
-        return countB - countA; // highest count first
+        const aChecked = checkedValues.includes(a);
+        const bChecked = checkedValues.includes(b);
+        return bChecked - aChecked || countB - countA;
       });
 
       container.innerHTML = sortedValues.map(value => {
         const count = getCountForValue(containerId, value);
         const checked = checkedValues.includes(value) ? 'checked' : '';
-        return count > 0
+        return count > 0 || containerId === 'typeFilters' || containerId === 'severityFilters'
           ? `<div class="checkbox">
               <input type="checkbox" value="${value}" onchange="filter()" ${checked}> 
               ${value} (${count})
