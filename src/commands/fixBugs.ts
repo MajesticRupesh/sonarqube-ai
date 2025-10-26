@@ -45,7 +45,18 @@ export async function fixBugs(context: vscode.ExtensionContext) {
   }
 
   const filePath = path.join(workspaceFolder, '.vscode/sonar-ai', 'sonar-issues.json');
-  const data = JSON.parse(fs.readFileSync(filePath, 'utf8'));
+  if (!fs.existsSync(filePath)) {
+    vscode.window.showErrorMessage('SonarQube issues file not found. Please run "Get SonarQube Issues" first.');
+    return;
+  }
+  
+  let data;
+  try {
+    data = JSON.parse(fs.readFileSync(filePath, 'utf8'));
+  } catch (error) {
+    vscode.window.showErrorMessage(`Failed to parse SonarQube issues file: ${error}`);
+    return;
+  }
   
   const panel = vscode.window.createWebviewPanel(
     'fixBugs',
@@ -57,15 +68,9 @@ export async function fixBugs(context: vscode.ExtensionContext) {
     }
   );
 
-  // Load the HTML file
-  const htmlPath = path.join(__dirname, '..', 'src', 'webview', 'fixBugs.html');
-  try {
-    const htmlContent = fs.readFileSync(htmlPath, 'utf8');
-    panel.webview.html = htmlContent;
-  } catch (error) {
-    vscode.window.showErrorMessage(`Failed to load webview HTML: ${error}`);
-    return;
-  }
+  // Load HTML file
+  const htmlPath = path.join(context.extensionPath, 'src', 'webview', 'fixBugs.html');
+  panel.webview.html = fs.readFileSync(htmlPath, 'utf8');
 
   // Send data to the webview
   panel.webview.postMessage({
