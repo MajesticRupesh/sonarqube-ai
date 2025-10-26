@@ -1,25 +1,45 @@
 {
   "name": "sonarqube-ai",
-  "displayName": "Sonarqube AI",
-  "description": "",
+  "displayName": "SonarQube AI",
+  "description": "AI-powered SonarQube issue analysis and automated bug fixing for VS Code",
   "version": "0.0.1",
+  "publisher": "MajesticRupesh",
+  "author": "Rupesh Pal",
+  "license": "MIT",
+  "homepage": "https://github.com/MajesticRupesh/sonarqube-ai",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/MajesticRupesh/sonarqube-ai.git"
+  },
+  "bugs": {
+    "url": "https://github.com/MajesticRupesh/sonarqube-ai/issues"
+  },
   "engines": {
     "vscode": "^1.104.0"
   },
   "categories": [
+    "Linters",
     "Other"
+  ],
+  "keywords": [
+    "sonarqube",
+    "ai",
+    "code-quality",
+    "static-analysis",
+    "bug-fixing",
+    "automation"
   ],
   "activationEvents": [],
   "main": "./dist/extension.js",
   "contributes": {
     "commands": [
       {
-        "command": "sonarqube-ai.runSonarAI",
-        "title": "Run Sonar AI"
+        "command": "sonarqube-ai.getIssues",
+        "title": "Get SonarQube Issues"
       },
       {
         "command": "sonarqube-ai.fixBugs",
-        "title": "Fix Bugs"
+        "title": "Fix SonarQube Bugs"
       }
     ]
   },

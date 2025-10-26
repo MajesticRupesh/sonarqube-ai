@@ -5,7 +5,7 @@ import { fixBugs } from './commands/fixBugs';
 export function activate(context: vscode.ExtensionContext) {
   console.log('Congratulations, your extension "sonarqube-ai" is now active!');
 
-  const disposable = vscode.commands.registerCommand('sonarqube-ai.runSonarAI', async () => {
+  const disposable = vscode.commands.registerCommand('sonarqube-ai.getIssues', async () => {
     await getIssues(context);
   });
 
