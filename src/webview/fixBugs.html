@@ -11,7 +11,8 @@
     .checkbox { margin: 1px 0; display: flex; align-items: center; }
     .checkbox input { width: auto; margin-right: 5px; }
     textarea { width: 100%; flex: 1; font-family: monospace; margin-bottom: 10px; }
-    button { padding: 10px 20px; }
+    button { padding: 10px 20px; flex: 1; }
+    .button-group { display: flex; gap: 10px; }
   </style>
 </head>
 <body>
@@ -41,7 +42,10 @@
   <div class="right">
     <textarea id="prompt"></textarea>
     <input type="text" id="dir" />
-    <button id="btn" onclick="fix()" disabled>Fix</button>
+    <div class="button-group">
+      <button id="btn" onclick="fix('cursor')" disabled>Fix with Cursor</button>
+      <button id="btnCopilot" onclick="fix('copilot')" disabled>Fix with Copilot</button>
+    </div>
   </div>
   <script>
     const vscode = acquireVsCodeApi();
@@ -146,7 +150,9 @@
       }).join('') + 'Fix these SAST issues';
       
       document.getElementById('prompt').value = text;
-      document.getElementById('btn').disabled = filteredIssues.length === 0;
+      const hasIssues = filteredIssues.length > 0;
+      document.getElementById('btn').disabled = !hasIssues;
+      document.getElementById('btnCopilot').disabled = !hasIssues;
       document.getElementById('issueCount').textContent = filteredIssues.length;
       
       if (filteredIssues.length > 0) {
@@ -168,12 +174,12 @@
       });
     }
     
-    function fix() {
+    function fix(agent) {
       if (filteredIssues.length === 0) return;
       const prompt = document.getElementById('prompt').value;
       const filePath = currentFile.includes(':') ? currentFile.split(':').slice(1).join(':') : currentFile;
       const dir = document.getElementById('dir').value;
-      vscode.postMessage({ command: 'fix', prompt: prompt, file: filePath, dir: dir });
+      vscode.postMessage({ command: agent === 'cursor' ? 'fixWithCursor' : 'fixWithCopilot', prompt: prompt, file: filePath, dir: dir });
     }
     
     // Listen for messages from the extension

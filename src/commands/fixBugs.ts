@@ -22,19 +22,28 @@ function getOrCreateTerminal(name: string): vscode.Terminal {
   return terminal;
 }
 
-async function runCursorAgent(dir: string, prompt: string, file: string): Promise<void> {
-  const terminal = getOrCreateTerminal('Cursor Agent');
-  terminal.show(true);
-  
-  terminal.sendText(`cd "${dir}"`);
-  
-  const escapedPrompt = prompt
+function escapePrompt(prompt: string): string {
+  return prompt
     .replace(/\\/g, '\\\\')
     .replace(/"/g, '\\"')
     .replace(/\$/g, '\\$')
     .replace(/`/g, '\\`');
-  
+}
+
+async function runCursorAgent(dir: string, prompt: string, file: string): Promise<void> {
+  const terminal = getOrCreateTerminal('Cursor Agent');
+  terminal.show(true);
+  terminal.sendText(`cd "${dir}"`);
+  const escapedPrompt = escapePrompt(prompt);
   terminal.sendText(`cursor-agent -p "${escapedPrompt}" "${file}" --output-format json > .vscode/sonar-ai/ai-response.json`);
+}
+
+async function runCopilotAgent(dir: string, prompt: string, file: string): Promise<void> {
+  const terminal = getOrCreateTerminal('Copilot Agent');
+  terminal.show(true);
+  terminal.sendText(`cd "${dir}"`);
+  const escapedPrompt = escapePrompt(prompt);
+  terminal.sendText(`copilot -p "${escapedPrompt}" --allow-all-tools > .vscode/sonar-ai/ai-response.json`);
 }
 
 export async function fixBugs(context: vscode.ExtensionContext) {
@@ -81,13 +90,16 @@ export async function fixBugs(context: vscode.ExtensionContext) {
 
   panel.webview.onDidReceiveMessage(
     async message => {
-      if (message.command === 'fix') {
-        const { prompt, file, dir } = message;
-        if (!file) {
-          vscode.window.showErrorMessage('Select a file first');
-          return;
-        }
+      const { prompt, file, dir } = message;
+      if (!file) {
+        vscode.window.showErrorMessage('Select a file first');
+        return;
+      }
+      
+      if (message.command === 'fixWithCursor') {
         await runCursorAgent(dir, prompt, file);
+      } else if (message.command === 'fixWithCopilot') {
+        await runCopilotAgent(dir, prompt, file);
       }
     },
     undefined,
