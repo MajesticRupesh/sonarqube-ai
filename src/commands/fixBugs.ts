@@ -81,11 +81,24 @@ export async function fixBugs(context: vscode.ExtensionContext) {
   const htmlPath = path.join(context.extensionPath, 'src', 'webview', 'fixBugs.html');
   panel.webview.html = fs.readFileSync(htmlPath, 'utf8');
 
+  // Load prompts
+  let prompts = [];
+  try {
+    const promptsPath = path.join(context.extensionPath, 'src', 'webview', 'prompts.json');
+    if (fs.existsSync(promptsPath)) {
+      prompts = JSON.parse(fs.readFileSync(promptsPath, 'utf8'));
+    }
+  } catch (error) {
+    // Use empty prompts if file doesn't exist or fails to parse
+    prompts = [];
+  }
+
   // Send data to the webview
   panel.webview.postMessage({
     command: 'initialize',
     issues: data.issues,
-    workspaceFolder: workspaceFolder
+    workspaceFolder: workspaceFolder,
+    prompts: prompts
   });
 
   panel.webview.onDidReceiveMessage(

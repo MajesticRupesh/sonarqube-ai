@@ -3,17 +3,34 @@
 <head>
   <style>
     body { padding: 0; margin: 0; font-family: var(--vscode-font-family); display: flex; height: 100vh; }
-    .left { width: 40%; padding: 20px; overflow-y: auto; border-right: 1px solid var(--vscode-panel-border); }
-    .right { width: 60%; padding: 20px; display: flex; flex-direction: column; }
-    input { width: 100%; padding: 8px; margin-bottom: 4px; }
+    .left { width: 30%; padding: 20px; overflow-y: auto; border-right: 1px solid var(--vscode-panel-border); }
+    .center { width: 40%; padding: 20px; display: flex; flex-direction: column; }
+    .right { width: 30%; padding: 20px; display: flex; flex-direction: column; }
+    input { width: 100%; padding: 8px auto; margin-bottom: 4px; }
+    .filter-title { font-weight: bold; font-size: 1.3em; }
     .filter-group { margin-bottom: 10px; }
     .filter-group h4 { margin: 0 0 3px 0; }
     .checkbox input { width: auto; margin-right: 5px; }
     textarea { width: 100%; flex: 1; font-family: monospace; margin-bottom: 10px; }
     button { padding: 10px 20px; flex: 1; }
     .button-group { display: flex; gap: 10px; }
-    summary { cursor: pointer; }
-    .remove-filter-btn { padding: 4px 8px; font-size: 0.85em; flex: 0; margin-left: 10px; }
+    summary { display: flex;
+      align-items: center;
+      list-style: none;          
+      cursor: pointer; 
+    }
+    summary::before {
+      content: '▶';
+      margin-right: 6px;
+      transition: transform 0.2s;
+    }
+    details[open] > summary::before {
+      transform: rotate(90deg);         /* rotate when open */
+    }
+    .remove-filter-btn { padding: 2px 4px; font-size: 0.85em; flex: 0.7; margin-left: 10px; }
+    .right { overflow-y: auto; }
+    .prompt-item { padding: 8px; margin-bottom: 6px; border: 1px solid var(--vscode-panel-border); border-radius: 4px; cursor: pointer; font-size: 0.9em; }
+    .prompt-item:hover { background-color: var(--vscode-list-hoverBackground); }
   </style>
 </head>
 <body>
@@ -21,41 +38,41 @@
     <div id="totalCount" style="font-weight: bold; margin-bottom: 10px;">Total: <span id="issueCount">0</span> issues</div>
     <details class="filter-group">
       <summary>
-        <span>Type</span>
+        <span class="filter-title">Type</span>
         <button class="remove-filter-btn" onclick="removeFilter('typeFilters', event)" style="display: none;">Remove filter</button>
       </summary>
       <div id="typeFilters"></div>
     </details>
     <details class="filter-group">
       <summary>
-        <span>Severity</span>
+        <span class="filter-title">Severity</span>
         <button class="remove-filter-btn" onclick="removeFilter('severityFilters', event)" style="display: none;">Remove filter</button>
       </summary>
       <div id="severityFilters"></div>
     </details>
     <details class="filter-group">
       <summary>
-        <span>Rule</span>
+        <span class="filter-title">Rule</span>
         <button class="remove-filter-btn" onclick="removeFilter('ruleFilters', event)" style="display: none;">Remove filter</button>
       </summary>
       <div id="ruleFilters"></div>
     </details>
     <details class="filter-group">
       <summary>
-        <span>Directory</span>
+        <span class="filter-title">Directory</span>
         <button class="remove-filter-btn" onclick="removeFilter('directoryFilters', event)" style="display: none;">Remove filter</button>
       </summary>
       <div id="directoryFilters"></div>
     </details>
     <details class="filter-group">
       <summary>
-        <span>File</span>
+        <span class="filter-title">File</span>
         <button class="remove-filter-btn" onclick="removeFilter('fileFilters', event)" style="display: none;">Remove filter</button>
       </summary>
       <div id="fileFilters"></div>
     </details>
   </div>
-  <div class="right">
+  <div class="center">
     <textarea id="prompt"></textarea>
     <input type="text" id="dir" />
     <div class="button-group">
@@ -63,18 +80,43 @@
       <button id="btnCopilot" onclick="fix('copilot')" disabled>Fix with Copilot</button>
     </div>
   </div>
+  <div class="right">
+    <h3 style="margin-top: 0;">Quick Prompts</h3>
+    <div id="promptsList"></div>
+  </div>
   <script>
     const vscode = acquireVsCodeApi();
     let issues = [];
     let currentFile = '';
     let filteredIssues = [];
+    let prompts = [];
     
-    function initializeUI(issuesData, workspaceFolder) {
+    function loadPrompts(promptsData) {
+      prompts = promptsData || [];
+      const promptsList = document.getElementById('promptsList');
+      promptsList.innerHTML = prompts.map((text, index) => 
+        `<div class="prompt-item" onclick="insertPrompt(${index})">${text.substring(0, 80)}${text.length > 80 ? '...' : ''}</div>`
+      ).join('');
+    }
+    
+    function insertPrompt(index) {
+      const textarea = document.getElementById('prompt');
+      if (prompts[index] && textarea) {
+        textarea.value += prompts[index];
+        textarea.focus();
+        textarea.scrollTop = textarea.scrollHeight;
+      }
+    }
+    
+    function initializeUI(issuesData, workspaceFolder, promptsData) {
       issues = issuesData;
       filteredIssues = issues;
       
       // Set workspace folder
       document.getElementById('dir').value = workspaceFolder;
+      
+      // Load prompts
+      loadPrompts(promptsData);
       
       // Initial filter
       filter();
@@ -85,13 +127,9 @@
       const checkedValues = Array.from(document.querySelectorAll(`#${containerId} input[type="checkbox"]:checked`)).map(cb => cb.value);
 
       // Sort values by count (descending)
-      const sortedValues = [...values].sort((a, b) => {
-        const countA = getCountForValue(containerId, a);
-        const countB = getCountForValue(containerId, b);
-        const aChecked = checkedValues.includes(a);
-        const bChecked = checkedValues.includes(b);
-        return bChecked - aChecked || countB - countA;
-      });
+      const sortedValues = [...values].sort((a, b) => 
+        getCountForValue(containerId, b) - getCountForValue(containerId, a)
+      );
 
       container.innerHTML = sortedValues.map(value => {
         const count = getCountForValue(containerId, value);
@@ -228,7 +266,7 @@
     window.addEventListener('message', event => {
       const message = event.data;
       if (message.command === 'initialize') {
-        initializeUI(message.issues, message.workspaceFolder);
+        initializeUI(message.issues, message.workspaceFolder, message.prompts);
       }
     });
   </script>
