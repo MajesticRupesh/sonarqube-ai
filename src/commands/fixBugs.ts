@@ -77,9 +77,17 @@ export async function fixBugs(context: vscode.ExtensionContext) {
     }
   );
 
-  // Load HTML file
-  const htmlPath = path.join(context.extensionPath, 'src', 'webview', 'fixBugs.html');
-  panel.webview.html = fs.readFileSync(htmlPath, 'utf8');
+  // Load and combine HTML, CSS, and JS files
+  const webviewDir = path.join(context.extensionPath, 'src', 'webview');
+  const htmlContent = fs.readFileSync(path.join(webviewDir, 'fixBugs.html'), 'utf8');
+  const cssContent = fs.readFileSync(path.join(webviewDir, 'fixBugs.css'), 'utf8');
+  const jsContent = fs.readFileSync(path.join(webviewDir, 'fixBugs.js'), 'utf8');
+  
+  const combinedHtml = htmlContent
+    .replace('<link rel="stylesheet" href="fixBugs.css">', `<style>${cssContent}</style>`)
+    .replace('<script src="fixBugs.js"></script>', `<script>${jsContent}</script>`);
+  
+  panel.webview.html = combinedHtml;
 
   // Helper functions
   const loadPrompts = (filePath: string): string[] => {

@@ -1,0 +1,24 @@
+body { padding: 0; margin: 0; font-family: var(--vscode-font-family); display: flex; height: 100vh; }
+.left { width: 30%; padding: 20px; overflow-y: auto; border-right: 1px solid var(--vscode-panel-border); }
+.center { width: 40%; padding: 20px; display: flex; flex-direction: column; }
+.right { width: 30%; padding: 20px; display: flex; flex-direction: column; }
+input { width: 100%; padding: 8px auto; margin-bottom: 4px; }
+.filter-title { font-weight: bold; font-size: 1.3em; }
+.filter-group { margin-bottom: 10px; }
+.filter-group h4 { margin: 0 0 3px 0; }
+.checkbox input { width: auto; margin-right: 5px; }
+textarea { width: 100%; flex: 1; font-family: monospace; margin-bottom: 10px; }
+button { padding: 10px 20px; flex: 1; }
+.button-group { display: flex; gap: 10px; }
+summary { display: flex; align-items: center; list-style: none; cursor: pointer; }
+summary::before { content: '▶'; margin-right: 6px; transition: transform 0.2s; }
+details[open] > summary::before { transform: rotate(90deg); }
+.remove-filter-btn { padding: 2px 4px; font-size: 0.85em; flex: 0.7; margin-left: 10px; }
+.right { display: flex; flex-direction: column; position: relative; }
+.prompts-list-container { flex: 1; overflow-y: auto; margin-bottom: 10px; }
+.prompt-item { padding: 8px; margin-bottom: 6px; border: 1px solid var(--vscode-panel-border); border-radius: 4px; cursor: pointer; font-size: 0.9em; }
+.prompt-item:hover { background-color: var(--vscode-list-hoverBackground); }
+.custom-prompt-section { border-top: 1px solid var(--vscode-panel-border); padding-top: 10px; }
+.custom-prompt-input { width: 100%; padding: 6px; margin-bottom: 6px; font-size: 0.9em; box-sizing: border-box; }
+.save-prompt-btn { padding: 6px 12px; font-size: 0.9em; width: 100%; }
+
