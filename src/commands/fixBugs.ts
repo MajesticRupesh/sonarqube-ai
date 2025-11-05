@@ -81,28 +81,49 @@ export async function fixBugs(context: vscode.ExtensionContext) {
   const htmlPath = path.join(context.extensionPath, 'src', 'webview', 'fixBugs.html');
   panel.webview.html = fs.readFileSync(htmlPath, 'utf8');
 
-  // Load prompts
-  let prompts = [];
-  try {
-    const promptsPath = path.join(context.extensionPath, 'src', 'webview', 'prompts.json');
-    if (fs.existsSync(promptsPath)) {
-      prompts = JSON.parse(fs.readFileSync(promptsPath, 'utf8'));
+  // Helper functions
+  const loadPrompts = (filePath: string): string[] => {
+    try {
+      return fs.existsSync(filePath) ? JSON.parse(fs.readFileSync(filePath, 'utf8')) : [];
+    } catch {
+      return [];
     }
-  } catch (error) {
-    // Use empty prompts if file doesn't exist or fails to parse
-    prompts = [];
-  }
+  };
+
+  const defaultPromptsPath = path.join(context.extensionPath, 'src', 'webview', 'prompts.json');
+  const customPromptsPath = path.join(workspaceFolder, '.vscode', 'sonar-ai', 'custom-prompts.json');
+  
+  const defaultPrompts = loadPrompts(defaultPromptsPath);
+  const customPrompts = loadPrompts(customPromptsPath);
 
   // Send data to the webview
   panel.webview.postMessage({
     command: 'initialize',
     issues: data.issues,
     workspaceFolder: workspaceFolder,
-    prompts: prompts
+    defaultPrompts: defaultPrompts,
+    customPrompts: customPrompts
   });
 
   panel.webview.onDidReceiveMessage(
     async message => {
+      if (message.command === 'saveCustomPrompt') {
+        const customPromptsDir = path.dirname(customPromptsPath);
+        if (!fs.existsSync(customPromptsDir)) {
+          fs.mkdirSync(customPromptsDir, { recursive: true });
+        }
+        
+        const updatedCustomPrompts = [...loadPrompts(customPromptsPath), message.prompt];
+        fs.writeFileSync(customPromptsPath, JSON.stringify(updatedCustomPrompts, null, 2));
+        
+        panel.webview.postMessage({
+          command: 'customPromptSaved',
+          defaultPrompts: loadPrompts(defaultPromptsPath),
+          customPrompts: updatedCustomPrompts
+        });
+        return;
+      }
+      
       const { prompt, file, dir } = message;
       if (!file) {
         vscode.window.showErrorMessage('Select a file first');

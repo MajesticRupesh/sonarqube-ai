@@ -28,9 +28,13 @@
       transform: rotate(90deg);         /* rotate when open */
     }
     .remove-filter-btn { padding: 2px 4px; font-size: 0.85em; flex: 0.7; margin-left: 10px; }
-    .right { overflow-y: auto; }
+    .right { display: flex; flex-direction: column; position: relative; }
+    .prompts-list-container { flex: 1; overflow-y: auto; margin-bottom: 10px; }
     .prompt-item { padding: 8px; margin-bottom: 6px; border: 1px solid var(--vscode-panel-border); border-radius: 4px; cursor: pointer; font-size: 0.9em; }
     .prompt-item:hover { background-color: var(--vscode-list-hoverBackground); }
+    .custom-prompt-section { border-top: 1px solid var(--vscode-panel-border); padding-top: 10px; }
+    .custom-prompt-input { width: 100%; padding: 6px; margin-bottom: 6px; font-size: 0.9em; box-sizing: border-box; }
+    .save-prompt-btn { padding: 6px 12px; font-size: 0.9em; width: 100%; }
   </style>
 </head>
 <body>
@@ -82,7 +86,13 @@
   </div>
   <div class="right">
     <h3 style="margin-top: 0;">Quick Prompts</h3>
-    <div id="promptsList"></div>
+    <div class="prompts-list-container">
+      <div id="promptsList"></div>
+    </div>
+    <div class="custom-prompt-section">
+      <input type="text" id="customPromptInput" class="custom-prompt-input" placeholder="Enter custom prompt..." onkeypress="if(event.key==='Enter') saveCustomPrompt()">
+      <button class="save-prompt-btn" onclick="saveCustomPrompt()">Add Prompt</button>
+    </div>
   </div>
   <script>
     const vscode = acquireVsCodeApi();
@@ -91,8 +101,12 @@
     let filteredIssues = [];
     let prompts = [];
     
-    function loadPrompts(promptsData) {
-      prompts = promptsData || [];
+    function loadPrompts(defaultPrompts, customPrompts) {
+      prompts = [...(defaultPrompts || []), ...(customPrompts || [])];
+      renderPrompts();
+    }
+    
+    function renderPrompts() {
       const promptsList = document.getElementById('promptsList');
       promptsList.innerHTML = prompts.map((text, index) => 
         `<div class="prompt-item" onclick="insertPrompt(${index})">${text.substring(0, 80)}${text.length > 80 ? '...' : ''}</div>`
@@ -108,7 +122,16 @@
       }
     }
     
-    function initializeUI(issuesData, workspaceFolder, promptsData) {
+    function saveCustomPrompt() {
+      const input = document.getElementById('customPromptInput');
+      const text = input.value.trim();
+      if (text) {
+        vscode.postMessage({ command: 'saveCustomPrompt', prompt: '\n' + text });
+        input.value = '';
+      }
+    }
+    
+    function initializeUI(issuesData, workspaceFolder, defaultPrompts, customPrompts) {
       issues = issuesData;
       filteredIssues = issues;
       
@@ -116,7 +139,7 @@
       document.getElementById('dir').value = workspaceFolder;
       
       // Load prompts
-      loadPrompts(promptsData);
+      loadPrompts(defaultPrompts, customPrompts);
       
       // Initial filter
       filter();
@@ -266,7 +289,9 @@
     window.addEventListener('message', event => {
       const message = event.data;
       if (message.command === 'initialize') {
-        initializeUI(message.issues, message.workspaceFolder, message.prompts);
+        initializeUI(message.issues, message.workspaceFolder, message.defaultPrompts, message.customPrompts);
+      } else if (message.command === 'customPromptSaved') {
+        loadPrompts(message.defaultPrompts, message.customPrompts);
       }
     });
   </script>
