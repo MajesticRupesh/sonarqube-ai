@@ -2,7 +2,7 @@
   "name": "sonarqube-ai",
   "displayName": "SonarQube AI",
   "description": "AI-powered SonarQube issue analysis and automated bug fixing for VS Code",
-  "version": "0.0.1",
+  "version": "0.0.2",
   "publisher": "MajesticRupesh",
   "author": "Rupesh Pal",
   "license": "MIT",

@@ -2,6 +2,21 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.0.2] - 2025-10-28
+### Added
+- Remove Filter button to improve filter usability.
+- Prompts panel: users can now insert predefined prompts directly into the text box with a single click.
+
+### Changed
+- Minor internal UI adjustments for smoother interaction.
+
+### Fixed
+- Resolved issue where clicking a checkbox caused the element to jump to the top of the list; items now remain in place after interaction.
+
+### Security
+- N/A
+
+
 ## [0.0.1] - 2025-10-28
 ### Added
 - Initial release of SonarQube AI VS Code Extension.
