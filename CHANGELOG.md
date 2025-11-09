@@ -2,7 +2,21 @@
 
 All notable changes to this project will be documented in this file.
 
-## [0.0.2] - 2025-10-28
+## [0.0.3] - 2025-11-9
+### Added
+- Prompts Panel: Added support for creating and saving custom prompts with a single click.
+
+### Changed
+- Extracted inline HTML, CSS, and JS into separate files for better structure and maintainability.
+
+### Fixed
+- N/A
+
+### Security
+- N/A
+
+
+## [0.0.2] - 2025-11-5
 ### Added
 - Remove Filter button to improve filter usability.
 - Prompts panel: users can now insert predefined prompts directly into the text box with a single click.
