@@ -1,6 +1,7 @@
 import * as vscode from 'vscode';
 import * as fs from 'fs';
 import * as path from 'path';
+import { logAudit } from '../utils/auditLog';
 
 const terminals = new Map<string, vscode.Terminal>();
 
@@ -67,6 +68,8 @@ export async function fixBugs(context: vscode.ExtensionContext) {
     return;
   }
   
+  logAudit(workspaceFolder, 'fixBugs_opened', { issueCount: data.issues?.length || 0 });
+  
   const panel = vscode.window.createWebviewPanel(
     'fixBugs',
     'Fix Bugs',
@@ -124,6 +127,8 @@ export async function fixBugs(context: vscode.ExtensionContext) {
         const updatedCustomPrompts = [...loadPrompts(customPromptsPath), message.prompt];
         fs.writeFileSync(customPromptsPath, JSON.stringify(updatedCustomPrompts, null, 2));
         
+        logAudit(workspaceFolder, 'custom_prompt_saved', { prompt: message.prompt.substring(0, 50) });
+        
         panel.webview.postMessage({
           command: 'customPromptSaved',
           defaultPrompts: loadPrompts(defaultPromptsPath),
@@ -139,9 +144,15 @@ export async function fixBugs(context: vscode.ExtensionContext) {
       }
       
       if (message.command === 'fixWithCursor') {
+        logAudit(workspaceFolder, 'fix_triggered', { agent: 'cursor', file, promptLength: prompt.length });
         await runCursorAgent(dir, prompt, file);
       } else if (message.command === 'fixWithCopilot') {
+        logAudit(workspaceFolder, 'fix_triggered', { agent: 'copilot', file, promptLength: prompt.length });
         await runCopilotAgent(dir, prompt, file);
+      }
+      
+      if (message.command === 'filter_changed' || message.command === 'prompt_inserted') {
+        logAudit(workspaceFolder, message.command, message.details || {});
       }
     },
     undefined,

@@ -22,6 +22,7 @@ function insertPrompt(index) {
     textarea.value += prompts[index];
     textarea.focus();
     textarea.scrollTop = textarea.scrollHeight;
+    vscode.postMessage({ command: 'prompt_inserted', details: { promptIndex: index, promptLength: prompts[index].length } });
   }
 }
 

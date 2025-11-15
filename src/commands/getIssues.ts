@@ -1,6 +1,7 @@
 import * as vscode from 'vscode';
 import * as fs from 'fs';
 import * as path from 'path';
+import { logAudit } from '../utils/auditLog';
 
 const terminals = new Map<string, vscode.Terminal>();
 
@@ -28,6 +29,8 @@ export async function getIssues(context: vscode.ExtensionContext) {
     vscode.window.showErrorMessage('No workspace folder open');
     return;
   }
+  
+  logAudit(workspaceFolder, 'getIssues_opened');
 
   // Load existing config
   const configPath = path.join(workspaceFolder, '.vscode/sonar-ai', 'config.json');
@@ -57,7 +60,8 @@ export async function getIssues(context: vscode.ExtensionContext) {
       if (message.command === 'submit') {
         const { token, url } = message;
         
-        // Save config and run curl
+        logAudit(workspaceFolder, 'config_saved', { url });
+        
         const configDir = path.join(workspaceFolder, '.vscode/sonar-ai');
         if (!fs.existsSync(configDir)) {
           fs.mkdirSync(configDir, { recursive: true });
@@ -71,6 +75,7 @@ export async function getIssues(context: vscode.ExtensionContext) {
         
         terminal.sendText(`curl -u "${token.replace(/"/g, '\\"')}:" "${url.replace(/"/g, '\\"')}" > "${filePath}"`);
         
+        logAudit(workspaceFolder, 'issues_fetch_triggered', { url });
         vscode.window.showInformationMessage(`Configuration saved and fetching SonarQube issues... Check the terminal for progress.`);
       }
     },
