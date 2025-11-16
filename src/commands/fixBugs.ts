@@ -31,20 +31,44 @@ function escapePrompt(prompt: string): string {
     .replace(/`/g, '\\`');
 }
 
-async function runCursorAgent(dir: string, prompt: string, file: string): Promise<void> {
+function watchAndLogResponse(workspaceFolder: string, responsePath: string, agent: string, file: string) {
+  const dir = path.dirname(responsePath);
+  if (!fs.existsSync(dir)) {
+    fs.mkdirSync(dir, { recursive: true });
+  }
+  fs.watchFile(responsePath, { interval: 1000 }, () => {
+    try {
+      if (fs.existsSync(responsePath)) {
+        const content = fs.readFileSync(responsePath, 'utf8');
+        if (content.trim()) {
+          const data = JSON.parse(content);
+          const response = data.response || data.text || data.message || content;
+          logAudit(workspaceFolder, 'ai_response_received', { agent, file, response: response.substring(0, 500) });
+          fs.unwatchFile(responsePath);
+        }
+      }
+    } catch {}
+  });
+}
+
+async function runCursorAgent(workspaceFolder: string, dir: string, prompt: string, file: string): Promise<void> {
+  const responsePath = path.join(workspaceFolder, '.vscode', 'sonar-ai', 'ai-response.json');
+  watchAndLogResponse(workspaceFolder, responsePath, 'cursor', file);
   const terminal = getOrCreateTerminal('Cursor Agent');
   terminal.show(true);
   terminal.sendText(`cd "${dir}"`);
   const escapedPrompt = escapePrompt(prompt);
-  terminal.sendText(`cursor-agent -p "${escapedPrompt}" "${file}" --output-format json > .vscode/sonar-ai/ai-response.json`);
+  terminal.sendText(`cursor-agent -p "${escapedPrompt}" "${file}" --output-format json > "${responsePath}"`);
 }
 
-async function runCopilotAgent(dir: string, prompt: string, file: string): Promise<void> {
+async function runCopilotAgent(workspaceFolder: string, dir: string, prompt: string, file: string): Promise<void> {
+  const responsePath = path.join(workspaceFolder, '.vscode', 'sonar-ai', 'ai-response.json');
+  watchAndLogResponse(workspaceFolder, responsePath, 'copilot', file);
   const terminal = getOrCreateTerminal('Copilot Agent');
   terminal.show(true);
   terminal.sendText(`cd "${dir}"`);
   const escapedPrompt = escapePrompt(prompt);
-  terminal.sendText(`copilot -p "${escapedPrompt}" --allow-all-tools > .vscode/sonar-ai/ai-response.json`);
+  terminal.sendText(`copilot -p "${escapedPrompt}" --allow-all-tools > "${responsePath}"`);
 }
 
 export async function fixBugs(context: vscode.ExtensionContext) {
@@ -145,10 +169,10 @@ export async function fixBugs(context: vscode.ExtensionContext) {
       
       if (message.command === 'fixWithCursor') {
         logAudit(workspaceFolder, 'fix_triggered', { agent: 'cursor', file, promptLength: prompt.length });
-        await runCursorAgent(dir, prompt, file);
+        await runCursorAgent(workspaceFolder, dir, prompt, file);
       } else if (message.command === 'fixWithCopilot') {
         logAudit(workspaceFolder, 'fix_triggered', { agent: 'copilot', file, promptLength: prompt.length });
-        await runCopilotAgent(dir, prompt, file);
+        await runCopilotAgent(workspaceFolder, dir, prompt, file);
       }
       
       if (message.command === 'filter_changed' || message.command === 'prompt_inserted') {
